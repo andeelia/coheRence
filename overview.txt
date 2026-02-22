@@ -1,7 +1,8 @@
 overview of all required functionalities:
 
 1: List all .tif and clip them with osm building data
-    -> get building and federal border data automatically, based on the extent of the .tif
+    -> get building and federal border data automatically, based on the extent of the .tif files
+    -> if crs are different, transform all Items in the list to 
 
 2: look at one image and count coherence pixels per inside each overlaying building polygon
     -> calculate the mean or median coherence value of each building
