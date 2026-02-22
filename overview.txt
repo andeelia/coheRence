@@ -1,0 +1,11 @@
+overview of all required functionalities:
+
+1: List all .tif and clip them with osm building data
+    -> get building and federal border data automatically, based on the extent of the .tif
+
+2: look at one image and count coherence pixels per inside each overlaying building polygon
+    -> calculate the mean or median coherence value of each building
+    -> store the values of all images in the list in one .DF and in a .gpkg
+
+3: plot the resulting DF in percent graphs and in line charts for time series analysis
+    -> save them as .png
