@@ -7,7 +7,7 @@ library(tictoc)
 library(ggplot2)
 
  
-#%%CLIP AND GET OSM DATA
+#%%LOAD AND CLIP DATA
 load_and_clip <- function(data_path, target_crs = "EPSG:4326", buildings_path, gpgk_layer, save_clips = FALSE, project_path) {
   
   ####store all relevant data in a list####
@@ -123,6 +123,75 @@ load_and_clip <- function(data_path, target_crs = "EPSG:4326", buildings_path, g
   return(raster_objects)
 }
 
+#%%COHERENCE CALC
+coh_calc <- function (rast_files, buildings_path, target_crs) {
+  
+  ####prepare building data####
+  message('Start: Prepare the building data')
+  tic('Prepare the building data')
+
+  building_polygons <- st_read(buildings_path)
+
+  if (is.na(crs(building_polygons)) || crs(building_polygons) != crs(target_crs)) {
+
+      building_polygons <- st_transform(building_polygons, crs(target_crs))
+
+      message(paste('The CRS of all buildings was succesfully transformed to', target_crs, '!'))
+    }
+
+  #prepare terra vector
+  terra_buildings <- vect(building_polygons)
+
+  #convert to single polygons for analysis
+  single_buildings <- disagg(terra_buildings)
+  print(paste("Number of single polygons:", nrow(single_buildings)))
+
+  message('End: Prepare the building data')
+  toc()
+
+  ####pixel analysis####
+  message('Start: Coherence analysis per building')
+  tic('Coherence analysis per building')
+
+  results_list <- list()
+
+  for (rast in seq_along(rast_files)) {
+  
+    current_rast <- rast(rast_files[rast])
+    
+    layer_name <- tools::file_path_sans_ext(basename(rast_files[rast]))
+    
+    #calculate the mean of each polygon with exact pixel fractions
+    coh_stats <- extract(
+      current_rast,
+      single_buildings,
+      fun = function(x) c(count = length(x), mean = mean(x, na.rm = TRUE)),
+      exact = TRUE
+    ) 
+    #remove ID column and name the column
+    res_df <- data.frame(stats[, -1])
+    colnames(res_df) <- paste0(layer_name, '_mean') 
+
+    #append mini DF to the list 
+    results_list[[rast]] <- res_df
+  }
+
+  #combine results to original buildings
+  all_stats <- do.call(cbind, results_list)
+  single_buildings_complete <- cbind(single_buildings, all_stats)
+
+  #mask and filter buildings with no entry
+  building_mask <- !is.na(single_buildings_complete[[paste0(layer_name, "_mean")]])
+  empty_buildings <- sum(!building_mask)
+  message(paste('Number of buildings without any values:', empty_buildings))
+  #overwrite single_buildings_complete
+  single_buildings_complete <- single_buildings_complete[building_mask, ]
+
+  message('End: Prepare the building data')
+  toc()
+}
+
+
 #%%TEST AREA
 
 #define personal variables
@@ -135,8 +204,7 @@ buildings <- '/run/media/andeelia/Volume/B16_Bachelorarbeit/02_Daten/02_Bearbeit
 #call function
 test <- load_and_clip(data_path=path, target_crs=my_crs, buildings_path = buildings, save_clips = TRUE, project_path = final_dir)
 
-
-
+test2 <- coh_calc(rast_files = test, buildings_path = buildings, target_crs =  my_crs)
 #%%TRASH 
 """
 ####get building data####
