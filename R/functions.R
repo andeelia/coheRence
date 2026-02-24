@@ -1,28 +1,32 @@
 #%%SET UP THE BASICS
 library(terra)
-library(osmextract)
+library(osmdata)
 library(sf)
+library(tictoc)
 
-#define personal variables
-path <- '/run/media/andeelia/Volume/B16_Bachelorarbeit/02_Daten/02_Bearbeitete_Daten'
-my_crs <- "EPSG:32636" 
-  
+library(ggplot2)
 
+ 
 #%%CLIP AND GET OSM DATA
-clip_and_osm <- function(data_path, project_path, target_crs = "EPSG:4326", save_clips = TRUE) {
+load_and_clip <- function(data_path, target_crs = "EPSG:4326", buildings_path, gpgk_layer, save_clips = FALSE, project_path) {
   
   ####store all relevant data in a list####
+  message('Start: Data acquisition and Preparation')
+  tic('Data acquisition and Preparation')
   data_list <- list.files(
     path=data_path,
     pattern= '\\.tif$',
     full.names=TRUE
   )
-  message('All .tif files stored!')
+  print(paste0('File loaded:',data_list))
+  message(paste0(length(data_list), ' .tif files stored!'))
 
 
 
   ####get meta data from files and correct CRS####
+  #create new list for raster entries
   raster_objects <- vector('list', length(data_list))
+
   for (tif in seq_along(data_list)) {
 
     #convert entry into a raster object
@@ -36,54 +40,161 @@ clip_and_osm <- function(data_path, project_path, target_crs = "EPSG:4326", save
       message(paste('The CRS of index', tif, 'was succesfully transformed to', target_crs, '!'))
     }
 
+    #metadata validation
+    ext_vec <- as.vector(ext(dummy_raster))
+
+    if (any(is.na(ext_vec)) || any(!is.finite(ext_vec))) {
+
+      stop(paste('Missing critical metadata in:', data_files[tif]))
+    }
+
     #write object into new list
     raster_objects[[tif]] <- dummy_raster
 
     #clear storage for furter processing
     gc()
+  }
 
-    message(paste('Index', tif, 'successfully converted into a raster object!'))
+  message('Data successfully loaded and transformed')
+  message('End: Data acquisition and Preparation')
+  toc()
+
+  ####prepare building data####
+  message('Start: Prepare the building data')
+  tic('Prepare the building data')
+
+  building_polygons <- st_read(buildings_path)
+
+  if (is.na(crs(building_polygons)) || crs(building_polygons) != crs(target_crs)) {
+
+      building_polygons <- st_transform(building_polygons, crs(target_crs))
+
+      message(paste('The CRS of all buildings was succesfully transformed to', target_crs, '!'))
+    }
+
+  #prepare terra vector
+  terra_buildings <- vect(building_polygons)
+
+  message('End: Prepare the building data')
+  toc()
+
+
+  ####clip the rast-objects with the borders and buildings####
+  message('Start: Clipping raster with buildings')
+  tic('Clipping raster with buildings')
+
+  for (rast in seq_along(raster_objects)) {
+
+    #assign the image to variable
+    current_rast <- raster_objects[[rast]]
     
+    #crop the raster to the extent
+    raster_crop <- crop(current_rast, terra_buildings)
 
-  #feedback
-  #check for valid crs
-  dummy_crs <- crs(dummy_raster)
-  has_crs <- !is.na(dummy_crs) && nchar(dummy_crs) > 0
-  
-  #check for extent
-  dummy_ext <- ext(dummy_raster)
-  ext_vec <- as.vector(dummy_ext)
-  has_ext <- all(!is.na(ext_vec)) && all(is.finite(ext_vec))
+    #mask out non-relevant pixels
+    final_mask <- mask(raster_crop, terra_buildings)
 
-  if (!has_crs) {
-    warning('CRS is missing or invalid!')
-  } 
-  
-  if (!has_ext) {
-    warning('Spatial extent contains NA or non-finite values!')
+    #replace the original raster with the copped one
+    raster_objects[[rast]] <- final_mask
+
+    #save .tif if needed
+    if (save_clips == TRUE) {
+      
+      #extract name of the original file
+      original_name <- tools::file_path_sans_ext(basename(data_list[[rast]]))
+
+      #define target directory for storing the raster
+      target_dir <- file.path(project_path, paste0(original_name, '_clipped.tif'))
+
+      #save the files
+      writeRaster(
+        final_mask,
+        filename = target_dir,
+        overwrite=TRUE
+      )
+      message(paste('Saved at', target_dir))
+    } 
+
+    message(paste('Finished clipping index', original_name))
   }
+  message('End: Clipping raster with buildings')
+  toc()
 
-  if (has_crs && has_ext) {
-    message('Metadata successfully extracted!')
-    
-    #crs details for the user
-    crs_info <- crs(dummy_raster, describe = TRUE)
-    cat("  - CRS Name:", crs_info$name, "\n")
-    cat("  - EPSG:", crs_info$code, "\n")
-
-    #extent details for the user
-    cat("  - Extent (xmin, xmax, ymin, ymax):", paste(round(ext_vec, 2), collapse = ", "), "\n")
-  } else {
-    stop('Critical metadata missing. Function stopped!')
-  }
-  }
-
-
-  ####get building and border data####
-
-
-  ####clip the .tif with the borders and buildings####
+  return(raster_objects)
 }
 
 #%%TEST AREA
-test <- clip_and_osm(data_path=path, target_crs=my_crs)
+
+#define personal variables
+path <- '/run/media/andeelia/Volume/B16_Bachelorarbeit/02_Daten/02_Bearbeitete_Daten'
+my_crs <- "EPSG:32636" 
+region <- 'Gaza'
+final_dir <- '/home/andeelia/Documents/GitHub/package_test/'
+buildings <- '/run/media/andeelia/Volume/B16_Bachelorarbeit/02_Daten/02_Bearbeitete_Daten/Gaza_Stripe_buildings.shp'
+
+#call function
+test <- load_and_clip(data_path=path, target_crs=my_crs, buildings_path = buildings, save_clips = TRUE, project_path = final_dir)
+
+
+
+#%%TRASH 
+"""
+####get building data####
+  message('Start: Get OSM building and data')
+  tic('Get OSM building data')
+  
+  #create BoundingBox based on the reference raster
+  ref_raster <- raster_objects[[1]]
+  bbox_sf <- st_as_sfc(st_bbox(ref_raster))
+  
+  #transform BoundingBox to 4326 for OSM-API
+  bbox_osm <- st_bbox(st_transform(bbox_sf, 'EPSG:4326'))
+
+  #create query for every building inside the bb
+  q_buildings <- opq(bbox_osm, timeout=300) %>%
+    add_osm_feature(key = 'building')
+
+  #download data and convert them into sf-objects
+  osm_data_buildings <- osmdata_sf(q_buildings)
+
+  if (is.null(osm_data_buildings$osm_polygons)) {
+    stop('No building polygons found for this AOI.')
+  }
+
+  #create a DF out of them and reproject
+  buildings <- osm_data_buildings$osm_polygons
+  buildings_utm <- st_transform(buildings, target_crs)
+
+  #convert to a terra vector
+  terra_buildings <- vect(buildings_utm)
+
+  #short inspection
+  message(paste(nrow(buildings_utm), 'buildings downloaded!'))
+
+  if (save_buildings == TRUE){
+
+    gpkg_path <- file.path(project_path, 'osm_buildings.gpkg')
+
+    writeVector(
+      terra_buildings,
+      filename = gpkg_path,
+      overwrite = TRUE)
+    
+    message(paste('Builing polygons have been saved at:', gpkg_path))
+  }
+  
+  ##border
+#  q_border <- opq(AOI) %>%
+#    add_osm_feature(key = 'admin_level', value = '2') #nation borders
+#
+#  osm_data_border <- osmdata_sf(q_border)
+#
+#  borders <- osm_data_border$osm_polygons
+#  borders_utm <- st_transform(borders, target_crs)
+
+#  message(paste(nrow(borders_utm), 'borders downloaded!'))
+#  print(head(borders_utm))
+
+  message('End: Get building data')
+  toc()
+  """
