@@ -9,7 +9,7 @@ library(ggplot2)
  
 #%%LOAD AND CLIP DATA
 load_and_clip <- function(data_path, target_crs = "EPSG:4326", buildings_path, gpgk_layer, save_clips = FALSE, project_path) {
-  
+  tic('Global runtime:')
   ####store all relevant data in a list####
   message('Start: Data acquisition and Preparation')
   tic('Data acquisition and Preparation')
@@ -72,14 +72,23 @@ load_and_clip <- function(data_path, target_crs = "EPSG:4326", buildings_path, g
       message(paste('The CRS of all buildings was succesfully transformed to', target_crs, '!'))
     }
 
+  
+  #extract extent of raster object
+  ref_ext <- ext(raster_objects[[1]])
+  #define bounding box
+  bbox_polygon <- st_as_sfc(st_bbox(ref_ext, crs = target_crs))
+  
+  #clip the building polygons with extent
+  filtered_buildings <- st_filter(building_polygons, bbox_polygon) 
+
   #prepare terra vector
-  terra_buildings <- vect(building_polygons)
+  terra_buildings <- vect(filtered_buildings)
 
   message('End: Prepare the building data')
   toc()
 
 
-  ####clip the rast-objects with the borders and buildings####
+  ####clip the rast-objects with the buildings####
   message('Start: Clipping raster with buildings')
   tic('Clipping raster with buildings')
 
@@ -120,29 +129,30 @@ load_and_clip <- function(data_path, target_crs = "EPSG:4326", buildings_path, g
   message('End: Clipping raster with buildings')
   toc()
 
-  return(raster_objects)
+  toc()
+  return(list(raster_objects = raster_objects, raster_buildings = filtered_buildings))
 }
 
 
 
 #%%COHERENCE CALC
-coh_calc <- function (rast_files, buildings_path, target_crs) {
-  
+coh_calc <- function (rast_files, buildings, target_crs, project_path) {
+  tic('Global runtime:')
   ####prepare building data####
   message('Start: Prepare the building data')
   tic('Prepare the building data')
 
-  building_polygons <- st_read(buildings_path)
+  #building_polygons <- st_read(buildings_path)
 
-  if (is.na(crs(building_polygons)) || crs(building_polygons) != crs(target_crs)) {
+  #if (is.na(st_crs(building_polygons)) || st_crs(building_polygons) != st_crs(target_crs)) {
 
-      building_polygons <- st_transform(building_polygons, crs(target_crs))
+  #    building_polygons <- st_transform(building_polygons, st_crs(target_crs))
 
-      message(paste('The CRS of all buildings was succesfully transformed to', target_crs, '!'))
-    }
+  #    message(paste('The CRS of all buildings was succesfully transformed to', target_crs, '!'))
+  #  }
 
   #prepare terra vector
-  terra_buildings <- vect(building_polygons)
+  terra_buildings <- vect(buildings)
 
   #convert to single polygons for analysis
   single_buildings <- disagg(terra_buildings)
@@ -158,20 +168,23 @@ coh_calc <- function (rast_files, buildings_path, target_crs) {
   results_list <- list()
 
   for (rast in seq_along(rast_files)) {
-  
-    current_rast <- rast(rast_files[rast])
+
+    current_rast <- rast_files[[rast]]
     
-    layer_name <- tools::file_path_sans_ext(basename(rast_files[rast]))
+    layer_name <- names(current_rast)[1]
+    message(paste('Start analysis for', layer_name))
     
     #calculate the mean of each polygon with exact pixel fractions
     coh_stats <- extract(
       current_rast,
       single_buildings,
-      fun = function(x) c(count = length(x), mean = mean(x, na.rm = TRUE)),
+      #fun = function(x) c(count = length(x), mean = mean(x, na.rm = TRUE)),
+      fun = mean,
+      na.rm = TRUE,
       exact = TRUE
     ) 
     #remove ID column and name the column
-    res_df <- data.frame(stats[, -1])
+    res_df <- data.frame(coh_stats[, -1])
     colnames(res_df) <- paste0(layer_name, '_mean') 
 
     #append mini DF to the list 
@@ -180,91 +193,47 @@ coh_calc <- function (rast_files, buildings_path, target_crs) {
 
   #combine results to original buildings
   all_stats <- do.call(cbind, results_list)
-  single_buildings_complete <- cbind(single_buildings, all_stats)
+  single_buildings_coh <- cbind(single_buildings, all_stats)
 
   #mask and filter buildings with no entry
-  building_mask <- !is.na(single_buildings_complete[[paste0(layer_name, "_mean")]])
+  building_mask <- !is.na(single_buildings_coh[[paste0(layer_name, "_mean")]])
   empty_buildings <- sum(!building_mask)
   message(paste('Number of buildings without any values:', empty_buildings))
-  #overwrite single_buildings_complete
-  single_buildings_complete <- single_buildings_complete[building_mask, ]
 
-  message('End: Prepare the building data')
+  #overwrite single_buildings_complete
+  single_buildings_coh <- single_buildings_coh[building_mask, ]
+
+  #save results
+  target_dir <- file.path(project_path, 'single_buildings_coh.gpkg')
+
+  writeVector(
+    single_buildings_coh,
+    target_dir,
+    overwrite = TRUE,
+  )
+
+  single_buildings_coh_df <- as.data.frame(single_buildings_coh)
+
+  message('End: Coherence analysis per building')
   toc()
+  toc()
+  return (single_buildings_coh_df)
 }
 
 
 #%%TEST AREA
 
 #define personal variables
-path <- '/run/media/andeelia/Volume/B16_Bachelorarbeit/02_Daten/02_Bearbeitete_Daten'
+path <- '/home/andeelia/Documents/GitHub/package_test/raw_data/'
 my_crs <- "EPSG:32636" 
-region <- 'Gaza'
-final_dir <- '/home/andeelia/Documents/GitHub/package_test/'
-buildings <- '/run/media/andeelia/Volume/B16_Bachelorarbeit/02_Daten/02_Bearbeitete_Daten/Gaza_Stripe_buildings.shp'
+final_dir <- '/home/andeelia/Documents/GitHub/package_test/clipped_data/'
+buildings <- '/home/andeelia/Documents/GitHub/package_test/raw_data/Gaza_Stripe_buildings.shp'
+clipped_buildings <- test[[2]]
+clipped_raster <- test[[1]]
+
 
 #call function
 test <- load_and_clip(data_path=path, target_crs=my_crs, buildings_path = buildings, save_clips = TRUE, project_path = final_dir)
 
-test2 <- coh_calc(rast_files = test, buildings_path = buildings, target_crs =  my_crs)
-#%%TRASH 
-"""
-####get building data####
-  message('Start: Get OSM building and data')
-  tic('Get OSM building data')
-  
-  #create BoundingBox based on the reference raster
-  ref_raster <- raster_objects[[1]]
-  bbox_sf <- st_as_sfc(st_bbox(ref_raster))
-  
-  #transform BoundingBox to 4326 for OSM-API
-  bbox_osm <- st_bbox(st_transform(bbox_sf, 'EPSG:4326'))
+test2 <- coh_calc(rast_files = clipped_raster, buildings = clipped_buildings, target_crs =  my_crs, project_path = final_dir)
 
-  #create query for every building inside the bb
-  q_buildings <- opq(bbox_osm, timeout=300) %>%
-    add_osm_feature(key = 'building')
-
-  #download data and convert them into sf-objects
-  osm_data_buildings <- osmdata_sf(q_buildings)
-
-  if (is.null(osm_data_buildings$osm_polygons)) {
-    stop('No building polygons found for this AOI.')
-  }
-
-  #create a DF out of them and reproject
-  buildings <- osm_data_buildings$osm_polygons
-  buildings_utm <- st_transform(buildings, target_crs)
-
-  #convert to a terra vector
-  terra_buildings <- vect(buildings_utm)
-
-  #short inspection
-  message(paste(nrow(buildings_utm), 'buildings downloaded!'))
-
-  if (save_buildings == TRUE){
-
-    gpkg_path <- file.path(project_path, 'osm_buildings.gpkg')
-
-    writeVector(
-      terra_buildings,
-      filename = gpkg_path,
-      overwrite = TRUE)
-    
-    message(paste('Builing polygons have been saved at:', gpkg_path))
-  }
-  
-  ##border
-#  q_border <- opq(AOI) %>%
-#    add_osm_feature(key = 'admin_level', value = '2') #nation borders
-#
-#  osm_data_border <- osmdata_sf(q_border)
-#
-#  borders <- osm_data_border$osm_polygons
-#  borders_utm <- st_transform(borders, target_crs)
-
-#  message(paste(nrow(borders_utm), 'borders downloaded!'))
-#  print(head(borders_utm))
-
-  message('End: Get building data')
-  toc()
-  """
