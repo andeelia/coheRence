@@ -123,6 +123,8 @@ load_and_clip <- function(data_path, target_crs = "EPSG:4326", buildings_path, g
   return(raster_objects)
 }
 
+
+
 #%%COHERENCE CALC
 coh_calc <- function (rast_files, buildings_path, target_crs) {
   
