@@ -5,6 +5,10 @@ library(sf)
 library(tictoc)
 
 library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(scales)
+library(patchwork)
 
  
 #%%LOAD AND CLIP DATA
@@ -18,6 +22,10 @@ load_and_clip <- function(data_path, target_crs = "EPSG:4326", buildings_path, g
     pattern= '\\.tif$',
     full.names=TRUE
   )
+
+  data_list <- sort(data_list, decreasing = FALSE)
+  product_count <- length(data_list)
+  
   print(paste0('File loaded:',data_list))
   message(paste0(length(data_list), ' .tif files stored!'))
 
@@ -30,18 +38,18 @@ load_and_clip <- function(data_path, target_crs = "EPSG:4326", buildings_path, g
   for (tif in seq_along(data_list)) {
 
     #convert entry into a raster object
-    dummy_raster <- rast(data_list[[tif]])
+    dummy_raster <- terra::rast(data_list[[tif]])
   
     #check for CRS compability
-    if (is.na(crs(dummy_raster)) || crs(dummy_raster) != crs(target_crs)) {
+    if (is.na(terra::crs(dummy_raster)) || terra::crs(dummy_raster) != terra::crs(target_crs)) {
 
-      dummy_raster <- project(dummy_raster, crs(target_crs))
+      dummy_raster <- terra::project(dummy_raster, terra::crs(target_crs))
 
       message(paste('The CRS of index', tif, 'was succesfully transformed to', target_crs, '!'))
     }
 
     #metadata validation
-    ext_vec <- as.vector(ext(dummy_raster))
+    ext_vec <- terra::as.vector(terra::ext(dummy_raster))
 
     if (any(is.na(ext_vec)) || any(!is.finite(ext_vec))) {
 
@@ -63,26 +71,26 @@ load_and_clip <- function(data_path, target_crs = "EPSG:4326", buildings_path, g
   message('Start: Prepare the building data')
   tic('Prepare the building data')
 
-  building_polygons <- st_read(buildings_path)
+  building_polygons <- sf::st_read(buildings_path)
 
-  if (is.na(crs(building_polygons)) || crs(building_polygons) != crs(target_crs)) {
+  if (is.na(sf::crs(building_polygons)) || sf::crs(building_polygons) != sf::crs(target_crs)) {
 
-      building_polygons <- st_transform(building_polygons, crs(target_crs))
+      building_polygons <- sf::st_transform(building_polygons, sf::crs(target_crs))
 
       message(paste('The CRS of all buildings was succesfully transformed to', target_crs, '!'))
     }
 
   
   #extract extent of raster object
-  ref_ext <- ext(raster_objects[[1]])
+  ref_ext <- terra::ext(raster_objects[[1]])
   #define bounding box
-  bbox_polygon <- st_as_sfc(st_bbox(ref_ext, crs = target_crs))
+  bbox_polygon <- sf::st_as_sfc(sf::st_bbox(ref_ext, crs = target_crs))
   
   #clip the building polygons with extent
-  filtered_buildings <- st_filter(building_polygons, bbox_polygon) 
+  filtered_buildings <- sf::st_filter(building_polygons, bbox_polygon) 
 
   #prepare terra vector
-  terra_buildings <- vect(filtered_buildings)
+  terra_buildings <- terra::vect(filtered_buildings)
 
   message('End: Prepare the building data')
   toc()
@@ -98,10 +106,10 @@ load_and_clip <- function(data_path, target_crs = "EPSG:4326", buildings_path, g
     current_rast <- raster_objects[[rast]]
     
     #crop the raster to the extent
-    raster_crop <- crop(current_rast, terra_buildings)
+    raster_crop <- terra::crop(current_rast, terra_buildings)
 
     #mask out non-relevant pixels
-    final_mask <- mask(raster_crop, terra_buildings)
+    final_mask <- terra::mask(raster_crop, terra_buildings)
 
     #replace the original raster with the copped one
     raster_objects[[rast]] <- final_mask
@@ -116,7 +124,7 @@ load_and_clip <- function(data_path, target_crs = "EPSG:4326", buildings_path, g
       target_dir <- file.path(project_path, paste0(original_name, '_clipped.tif'))
 
       #save the files
-      writeRaster(
+      terra::writeRaster(
         final_mask,
         filename = target_dir,
         overwrite=TRUE
@@ -130,7 +138,7 @@ load_and_clip <- function(data_path, target_crs = "EPSG:4326", buildings_path, g
   toc()
 
   toc()
-  return(list(raster_objects = raster_objects, raster_buildings = filtered_buildings))
+  return(list(raster_objects = raster_objects, raster_buildings = filtered_buildings, img_count = product_count))
 }
 
 
@@ -142,20 +150,11 @@ coh_calc <- function (rast_files, buildings, target_crs, project_path) {
   message('Start: Prepare the building data')
   tic('Prepare the building data')
 
-  #building_polygons <- st_read(buildings_path)
-
-  #if (is.na(st_crs(building_polygons)) || st_crs(building_polygons) != st_crs(target_crs)) {
-
-  #    building_polygons <- st_transform(building_polygons, st_crs(target_crs))
-
-  #    message(paste('The CRS of all buildings was succesfully transformed to', target_crs, '!'))
-  #  }
-
   #prepare terra vector
-  terra_buildings <- vect(buildings)
+  terra_buildings <- terra::vect(buildings)
 
   #convert to single polygons for analysis
-  single_buildings <- disagg(terra_buildings)
+  single_buildings <- terra::disagg(terra_buildings)
   print(paste("Number of single polygons:", nrow(single_buildings)))
 
   message('End: Prepare the building data')
@@ -175,7 +174,7 @@ coh_calc <- function (rast_files, buildings, target_crs, project_path) {
     message(paste('Start analysis for', layer_name))
     
     #calculate the mean of each polygon with exact pixel fractions
-    coh_stats <- extract(
+    coh_stats <- terra::extract(
       current_rast,
       single_buildings,
       #fun = function(x) c(count = length(x), mean = mean(x, na.rm = TRUE)),
@@ -206,7 +205,7 @@ coh_calc <- function (rast_files, buildings, target_crs, project_path) {
   #save results
   target_dir <- file.path(project_path, 'single_buildings_coh.gpkg')
 
-  writeVector(
+  terra::writeVector(
     single_buildings_coh,
     target_dir,
     overwrite = TRUE,
@@ -221,6 +220,154 @@ coh_calc <- function (rast_files, buildings, target_crs, project_path) {
 }
 
 
+#%%PLOTTING
+classified_plots <- function (coh_df, classification_list = c(0.2, 0.4, 0.6, 0.8, 1), number_of_images, project_path){
+  tic('Global runtime:')
+
+  #preparations
+  message('Start: Preparing the DF')
+  tic('Preparing the DF')
+
+  cols <- ncol(coh_df)
+  short_df <- coh_df[, (cols-(number_of_images-1)):cols]
+
+  classified_df <- short_df
+
+  #classifiying the image values
+  for (col_name in colnames(short_df)){
+    classified_df[[col_name]] <- dplyr::case_when(
+      short_df[[col_name]] <= classification_list[1] ~ 'Destroyed',
+      short_df[[col_name]] <= classification_list[2] ~ 'Severe Damages',
+      short_df[[col_name]] <= classification_list[3] ~ 'Major Damages',
+      short_df[[col_name]] <= classification_list[4] ~ 'Minor Damages',
+      TRUE                                           ~ 'Intact'
+      )
+  }
+
+  message('End: Preparing the DF')
+  toc()
+
+  #bar plot
+  message('Start: Plot bar chart')
+  tic('Plot bar chart')
+
+  #transform DF for plotting
+  df_plot_data <- classified_df %>%
+  tidyr::pivot_longer(
+    cols = everything(), 
+    names_to = "timestamp", 
+    values_to = "damage_class"
+  ) %>% dplyr::mutate(damage_class = factor(damage_class, 
+                                levels = c("Destroyed", "Severe Damages", "Major Damages", "Minor Damages", "Intact")))
+
+  
+  #aggregate values to show labels
+  df_plot_data_aggr <- df_plot_data %>%
+  dplyr::group_by(timestamp, damage_class) %>%
+  dplyr::summarise(n = n(), .groups = "drop_last") %>%
+  dplyr::mutate(pct = n / sum(n))
+
+  #create bar plot object
+  bar <- ggplot(df_plot_data_aggr, aes(x = timestamp, y = pct, fill = damage_class)) +
+    #geom_col to access pre calculated values from y=pct
+    geom_col(position = "fill") +
+    
+    #create data label
+    geom_text(
+      aes(label = label_percent(accuracy = 0.1)(pct)),
+      position = position_stack(vjust = 0.5), # Stacked Position für geom_col
+      size = 3.5,
+      color = "black",
+      fontface = "bold"
+    ) +
+    
+    #colors and legend
+    scale_fill_manual(values = c(
+      "Destroyed" = "#A50026", "Severe Damages" = "#ee702cff", 
+      "Major Damages" = "#dbd820ff", "Minor Damages" = "#6dca43ff", "Intact" = "#006837"
+    )) +
+    
+    #axis and label
+    scale_y_continuous(labels = label_percent()) + 
+    labs(
+      title = 'Relative number of affected buildings',
+      y = "Percentage", 
+      x = "Timestamp", 
+      fill = "Damage Class"
+    ) +
+    theme_minimal() +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+  print(bar)
+
+  message('End: Plot bar chart')
+  toc()
+
+  #line plot
+  message('Start: Plot line chart')
+  tic('Plot line charts')
+
+  #aggregate data line plot
+  df_counts <- df_plot_data %>%
+    dplyr::group_by(timestamp, damage_class) %>%
+    dplyr::summarise(count = n(), .groups = 'drop')
+
+
+  line <- ggplot(df_counts, aes(x = timestamp, y = count, color = damage_class, group = damage_class)) +
+    #data lines and data points
+    geom_line(linewidth = 1) +
+    geom_point(size = 2) +
+    
+    #label
+    geom_text(
+      aes(label = count),
+      vjust = -1,            
+      size = 3.5,
+      show.legend = FALSE  
+    ) +
+    
+    #colors
+    scale_color_manual(values = c(
+      "Destroyed" = "#A50026", "Severe Damages" = "#ee702cff", 
+      "Major Damages" = "#dbd820ff", "Minor Damages" = "#6dca43ff", "Intact" = "#006837"
+    )) +
+    
+    #axis
+    expand_limits(y = max(df_counts$count) * 1.1) +
+    labs(
+      title = "Absolute number of affected buildings", 
+      y = "Number of buildings", 
+      x = "Timestamp", 
+      color = "Damage Class"
+    ) +
+    theme_minimal() +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+  print(line)
+
+  message('End: Plot line chart')
+  toc()
+
+  message('Start: Save plots')
+  tic()
+
+  #save plots as one image
+  combined_plots <- bar / line
+
+  ggsave(
+    filename = paste0(project_path, '/combined_damage_analysis.png'),
+    plot = combined_plots,
+    width = 10,
+    height = 12,
+    dpi = 300,
+    bg = 'white'
+  )
+
+  message('End: Save plots')
+  toc()
+  toc()
+}
+
 #%%TEST AREA
 
 #define personal variables
@@ -228,12 +375,16 @@ path <- '/home/andeelia/Documents/GitHub/package_test/raw_data/'
 my_crs <- "EPSG:32636" 
 final_dir <- '/home/andeelia/Documents/GitHub/package_test/clipped_data/'
 buildings <- '/home/andeelia/Documents/GitHub/package_test/raw_data/Gaza_Stripe_buildings.shp'
-clipped_buildings <- test[[2]]
-clipped_raster <- test[[1]]
+
 
 
 #call function
 test <- load_and_clip(data_path=path, target_crs=my_crs, buildings_path = buildings, save_clips = TRUE, project_path = final_dir)
 
+clipped_raster <- test[[1]]
+clipped_buildings <- test[[2]]
+image_count <- test[[3]]
+
 test2 <- coh_calc(rast_files = clipped_raster, buildings = clipped_buildings, target_crs =  my_crs, project_path = final_dir)
 
+classified_plots(coh_df = test2, number_of_images = image_count, project_path = final_dir)
