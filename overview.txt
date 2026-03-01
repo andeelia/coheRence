@@ -11,3 +11,25 @@ overview of all required functionalities:
 
 3: plot the resulting DF in percent graphs and in line charts for time series analysis
     -> save them as .png
+
+
+#%%TEST AREA
+
+#define personal variables
+path <- '/home/andeelia/Documents/GitHub/package_test/raw_data/'
+my_crs <- "EPSG:32636" 
+final_dir <- '/home/andeelia/Documents/GitHub/package_test/clipped_data/'
+buildings <- '/home/andeelia/Documents/GitHub/package_test/raw_data/Gaza_Stripe_buildings.shp'
+
+
+
+#call function
+test <- load_and_clip(data_path=path, target_crs=my_crs, buildings_path = buildings, save_clips = TRUE, project_path = final_dir)
+
+clipped_raster <- test[[1]]
+clipped_buildings <- test[[2]]
+image_count <- test[[3]]
+
+test2 <- coh_calc(rast_files = clipped_raster, buildings = clipped_buildings, target_crs =  my_crs, project_path = final_dir)
+
+classified_plots(coh_df = test2, number_of_images = image_count, project_path = final_dir)
