@@ -73,7 +73,7 @@ load_and_clip <- function(data_path, target_crs = "EPSG:4326", buildings_path, s
     }
 
     #metadata validation
-    ext_vec <- terra::as.vector(terra::ext(dummy_raster))
+    ext_vec <- as.vector(terra::ext(dummy_raster))
 
     if (any(is.na(ext_vec)) || any(!is.finite(ext_vec))) {
 
@@ -97,9 +97,9 @@ load_and_clip <- function(data_path, target_crs = "EPSG:4326", buildings_path, s
 
   building_polygons <- sf::st_read(buildings_path)
 
-  if (is.na(sf::crs(building_polygons)) || sf::crs(building_polygons) != sf::crs(target_crs)) {
+  if (is.na(sf::st_crs(building_polygons)) || sf::st_crs(building_polygons) != sf::st_crs(target_crs)) {
 
-      building_polygons <- sf::st_transform(building_polygons, sf::crs(target_crs))
+      building_polygons <- sf::st_transform(building_polygons, sf::st_crs(target_crs))
 
       message(paste('The CRS of all buildings was succesfully transformed to', target_crs, '!'))
     }
