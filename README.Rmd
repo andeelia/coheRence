@@ -1,0 +1,108 @@
+---
+output: github_document
+---
+
+<!-- README.md is generated from README.Rmd. Please edit that file -->
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.path = "man/figures/README-",
+  out.width = "100%"
+)
+```
+
+# coheRence
+
+<!-- badges: start -->
+<!-- badges: end -->
+
+The goal of coheRence is to calcuate average coherence values for single in a region of your choice. It takes pre-made coherence maps and building polygons, clips the images and calculates an avergae coherence value per building polygon in order to determine its status. During the workflow, a classification scheme can be implemented. Also, this package saves calculated results for the input buildings as .gpkg and plots colored graphs of the results, in order to get a better overview of the data provided.
+The idea behind this kind of analysis is to provide a fast way to combine coherence loss estimation with build-up areas. It is especially useful for areas of armed conflicts or after natural desasters. The saved files from this package can be used for further spatial analysis regarding damage patterns at one specific time or as a time series.
+This package is not capable of downloading data or processing SAR-scenes!
+
+## Installation
+
+You can install the development version of coheRence from [GitHub](https://github.com/) with:
+
+``` r
+# install.packages("pak")
+pak::pak("andeelia/coheRence")
+```
+
+## Example
+
+The complete workflow is shown here:
+
+```{r load_and_clip}
+library(coheRence)
+library(terra)
+library(sf)
+library(tictoc)
+
+#define personal variables
+path <- '/home/andeelia/Documents/GitHub/package_test/raw_data/'
+gaza_crs <- "EPSG:32636" 
+final_dir <- '/home/andeelia/Documents/GitHub/package_test/clipped_data/'
+buildings <- '/home/andeelia/Documents/GitHub/package_test/raw_data/Gaza_Stripe_buildings.shp'
+
+#call first function to prepare further processing steps
+clips <- load_and_clip(data_path = path, target_crs = gaza_crs, buildings_path = buildings, save_clips = TRUE, project_path = final_dir)
+```
+
+The result of this function is a list consisting of three things.
+
+- A list of SpatRaster objects, clipped to the building outlines
+```{r clips1}
+plot(clips[[1]][[1]])
+```
+
+- A spatial DataFrame including the buildings clipped to the extent of the input images
+```{r clips2}
+head(clips[[2]])
+```
+
+- A numerical value, representing the number of input images
+```{r clips3}
+print(clips[[3]])
+```
+
+By assigning the results to variables, they can be used in the following function:
+
+```{r coh_calc}
+library(coheRence)
+library(terra)
+library(sf)
+library(tictoc)
+
+#assign results from load_andclip
+clipped_raster <- clips[[1]]
+clipped_buildings <- clips[[2]]
+
+#call second function to analyse your dataset
+coh_results <- coh_calc(rast_data = clipped_raster, buildings = clipped_buildings, target_crs =  gaza_crs, project_path = final_dir)
+
+```
+
+
+
+```{r plots}
+library(coheRence)
+library(tictoc)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(scales)
+library(patchwork)
+
+#assign result from load_and_clip
+image_count <- clips[[3]]
+
+#call function to plot graphs
+classified_plots(coh_df = coh_results, number_of_images = image_count, project_path = final_dir)
+
+```
+
+
+In that case, don't forget to commit and push the resulting figure files, so they display on GitHub and CRAN.
