@@ -1,9 +1,7 @@
 #%%SET UP THE BASICS
 library(terra)
-library(osmdata)
 library(sf)
 library(tictoc)
-
 library(ggplot2)
 library(dplyr)
 library(tidyr)
@@ -12,8 +10,35 @@ library(patchwork)
 
  
 #%%LOAD AND CLIP DATA
-load_and_clip <- function(data_path, target_crs = "EPSG:4326", buildings_path, gpgk_layer, save_clips = FALSE, project_path) {
+#' Load and clip .tif files with building polygons.
+#' 
+#' This function takes .tif files and converts them to a specified CRS defined by the user, if necessary. The function checks for an extent as well to exclude faulty  
+#' images. Buiding polygons are read in and transformed to the same CRS. The raster's extent is used to clip the extent od the buildings. After that, the polygons are used to clip
+#' the raster itself. The function stores and returns the clipped .tif files, the clipped buildings and returns the number of images loaded.
+#' 
+#' @param data_path Path to the raw data containing coherence maps in .tif format.
+#' @param target_crs User defined CRS as 'EPSG:123456'. Default is EPSG:4326.
+#' @param buildings_path Path to the raw builing vector file.
+#' @param save_clips Set to TRUE or FALSE, if the results should be saved. Default is TRUE.
+#' @param project_path Path for saved results.
+#' 
+#' @return List of SpatRaster objects
+#' @return DataFrame with all clipped buildings
+#' @return Single numerical value representing the number of images
+#' 
+#' @examples
+#' raw_path <- '[...]/GitHub/package_test/raw_data/'
+#' gaza_crs <- 'EPSG:32636' 
+#' final_dir <- '[...]/GitHub/package_test/clipped_data/'
+#' gaza_buildings <- '[...]/GitHub/package_test/raw_data/Gaza_Stripe_buildings.shp'
+#' 
+#' clips <- load_and_clip(data_path = path, target_crs = gaza_crs, buildings_path = gaza_buildings, save_clips = TRUE, project_path = final_dir)
+#' 
+#'  
+#' @export
+load_and_clip <- function(data_path, target_crs = "EPSG:4326", buildings_path, save_clips = FALSE, project_path) {
   tic('Global runtime:')
+
   ####store all relevant data in a list####
   message('Start: Data acquisition and Preparation')
   tic('Data acquisition and Preparation')
@@ -28,7 +53,6 @@ load_and_clip <- function(data_path, target_crs = "EPSG:4326", buildings_path, g
   
   print(paste0('File loaded:',data_list))
   message(paste0(length(data_list), ' .tif files stored!'))
-
 
 
   ####get meta data from files and correct CRS####
@@ -144,7 +168,31 @@ load_and_clip <- function(data_path, target_crs = "EPSG:4326", buildings_path, g
 
 
 #%%COHERENCE CALC
-coh_calc <- function (rast_files, buildings, target_crs, project_path) {
+#' Calculate the avergae coherence value per buildings polygon.
+#' 
+#' This function overlays given raster objects with the building polygons and calculates an average coherence value per polygon.
+#' Results are added to the building DF and saved as .gpkg.
+#' 
+#' 
+#' 
+#' @param rast_data List of SpatRaster data.
+#' @param buildings Dataframe containing building geometries.
+#' @param target_crs User defined CRS as 'EPSG:123456'. Default is EPSG:4326.
+#' @param project_path Path for saved results.
+#' 
+#' @return Single DataFrame containing calculated coherence values appended to the original DF.
+#' 
+#' @examples
+#' gaza_crs <- 'EPSG:32636' 
+#' final_dir <- '[...]/GitHub/package_test/clipped_data/'
+#' 
+#' clipped_raster <- clips[[1]]
+#' clipped_buildings <- clips[[2]]
+#' 
+#' coh_results <- coh_calc(rast_data = clipped_raster, buildings = clipped_buildings, target_crs = gaza_crs, project_path = final_dir)
+#' 
+#' @export
+coh_calc <- function (rast_data, buildings, target_crs = 'EPSG:4326', project_path) {
   tic('Global runtime:')
   ####prepare building data####
   message('Start: Prepare the building data')
@@ -166,9 +214,9 @@ coh_calc <- function (rast_files, buildings, target_crs, project_path) {
 
   results_list <- list()
 
-  for (rast in seq_along(rast_files)) {
+  for (rast in seq_along(rast_data)) {
 
-    current_rast <- rast_files[[rast]]
+    current_rast <- rast_data[[rast]]
     
     layer_name <- names(current_rast)[1]
     message(paste('Start analysis for', layer_name))
@@ -202,7 +250,7 @@ coh_calc <- function (rast_files, buildings, target_crs, project_path) {
   #overwrite single_buildings_complete
   single_buildings_coh <- single_buildings_coh[building_mask, ]
 
-  #save results
+  ####save results####
   target_dir <- file.path(project_path, 'single_buildings_coh.gpkg')
 
   terra::writeVector(
@@ -221,10 +269,30 @@ coh_calc <- function (rast_files, buildings, target_crs, project_path) {
 
 
 #%%PLOTTING
+#' Plot the results
+#' 
+#' This function takes a DataFrame containing all calculated results and removes all columns except the results. All results are classified with a given classification scheme.
+#' After that, a bar plot is created, showing the structure of classified buildings in relation to 100 %. A line plot is created to show the absolute numbers of classified buildings.
+#' Both plots plot the development over time as every column is plotted. The plots are saved as .png in one image.
+#' 
+#' @param coh_df DataFrame containing the results in the last columns.  It is expected to have as many result columns as images to analyse.
+#' @param classification_list A vector of five entries defining the classification boundaries. Set the lowest boundary at first. Default is c(0.2, 0.4, 0.6, 0.8, 1).
+#' @param number_of_images A numerical value representing the number of input images.
+#' @param project_path Path for saved results.
+#' 
+#' @return //
+#' 
+#' @examples
+#' image_count <- clips[[3]]
+#' final_dir <- '[...]/GitHub/package_test/clipped_data/'
+#' 
+#' classified_plots(coh_df = coh_results, number_of_images = image_count, project_path = final_dir)
+#' 
+#' @export
 classified_plots <- function (coh_df, classification_list = c(0.2, 0.4, 0.6, 0.8, 1), number_of_images, project_path){
   tic('Global runtime:')
 
-  #preparations
+  ####preparations####
   message('Start: Preparing the DF')
   tic('Preparing the DF')
 
@@ -233,7 +301,7 @@ classified_plots <- function (coh_df, classification_list = c(0.2, 0.4, 0.6, 0.8
 
   classified_df <- short_df
 
-  #classifiying the image values
+  ####classifiying the image values####
   for (col_name in colnames(short_df)){
     classified_df[[col_name]] <- dplyr::case_when(
       short_df[[col_name]] <= classification_list[1] ~ 'Destroyed',
@@ -247,7 +315,7 @@ classified_plots <- function (coh_df, classification_list = c(0.2, 0.4, 0.6, 0.8
   message('End: Preparing the DF')
   toc()
 
-  #bar plot
+  ####bar plot####
   message('Start: Plot bar chart')
   tic('Plot bar chart')
 
@@ -274,8 +342,8 @@ classified_plots <- function (coh_df, classification_list = c(0.2, 0.4, 0.6, 0.8
     
     #create data label
     geom_text(
-      aes(label = label_percent(accuracy = 0.1)(pct)),
-      position = position_stack(vjust = 0.5), # Stacked Position für geom_col
+      aes(label = scales::label_percent(accuracy = 0.1)(pct)),
+      position = position_stack(vjust = 0.5),
       size = 3.5,
       color = "black",
       fontface = "bold"
@@ -303,7 +371,7 @@ classified_plots <- function (coh_df, classification_list = c(0.2, 0.4, 0.6, 0.8
   message('End: Plot bar chart')
   toc()
 
-  #line plot
+  ####line plot####
   message('Start: Plot line chart')
   tic('Plot line charts')
 
@@ -351,7 +419,7 @@ classified_plots <- function (coh_df, classification_list = c(0.2, 0.4, 0.6, 0.8
   message('Start: Save plots')
   tic()
 
-  #save plots as one image
+  ####save plots as one image####
   combined_plots <- bar / line
 
   ggsave(
@@ -367,24 +435,3 @@ classified_plots <- function (coh_df, classification_list = c(0.2, 0.4, 0.6, 0.8
   toc()
   toc()
 }
-
-#%%TEST AREA
-
-#define personal variables
-path <- '/home/andeelia/Documents/GitHub/package_test/raw_data/'
-my_crs <- "EPSG:32636" 
-final_dir <- '/home/andeelia/Documents/GitHub/package_test/clipped_data/'
-buildings <- '/home/andeelia/Documents/GitHub/package_test/raw_data/Gaza_Stripe_buildings.shp'
-
-
-
-#call function
-test <- load_and_clip(data_path=path, target_crs=my_crs, buildings_path = buildings, save_clips = TRUE, project_path = final_dir)
-
-clipped_raster <- test[[1]]
-clipped_buildings <- test[[2]]
-image_count <- test[[3]]
-
-test2 <- coh_calc(rast_files = clipped_raster, buildings = clipped_buildings, target_crs =  my_crs, project_path = final_dir)
-
-classified_plots(coh_df = test2, number_of_images = image_count, project_path = final_dir)
