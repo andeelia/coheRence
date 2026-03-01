@@ -75,15 +75,15 @@ clips <- load_and_clip(data_path = path, target_crs = gaza_crs, buildings_path =
 #> Geodetic CRS:  WGS 84
 #> The CRS of all buildings was succesfully transformed to EPSG:32636 !
 #> End: Prepare the building data
-#> Prepare the building data: 18.787 sec elapsed
+#> Prepare the building data: 19.006 sec elapsed
 #> Start: Clipping raster with buildings
 #> Saved at /home/andeelia/Documents/GitHub/package_test/clipped_data//20230930_20231105_clipped.tif
 #> Finished clipping index 20230930_20231105
 #> Saved at /home/andeelia/Documents/GitHub/package_test/clipped_data//20230930_20250522_clipped.tif
 #> Finished clipping index 20230930_20250522
 #> End: Clipping raster with buildings
-#> Clipping raster with buildings: 0.406 sec elapsed
-#> Global runtime:: 19.439 sec elapsed
+#> Clipping raster with buildings: 0.429 sec elapsed
+#> Global runtime:: 19.681 sec elapsed
 ```
 
 The result of this function is a list consisting of three things.
@@ -154,15 +154,17 @@ coh_results <- coh_calc(rast_data = clipped_raster, buildings = clipped_building
 #> Start: Prepare the building data
 #> [1] "Number of single polygons: 27455"
 #> End: Prepare the building data
-#> Prepare the building data: 0.758 sec elapsed
+#> Prepare the building data: 0.803 sec elapsed
 #> Start: Coherence analysis per building
 #> Start analysis for 20230930_20231105
 #> Start analysis for 20230930_20250522
 #> Number of buildings without any values: 0
 #> End: Coherence analysis per building
-#> Coherence analysis per building: 72.581 sec elapsed
-#> Global runtime:: 73.34 sec elapsed
+#> Coherence analysis per building: 70.877 sec elapsed
+#> Global runtime:: 71.681 sec elapsed
 ```
+
+Finally, two plots will be created by calling classified plots:
 
 ``` r
 library(coheRence)
@@ -206,24 +208,24 @@ image_count <- clips[[3]]
 classified_plots(coh_df = coh_results, number_of_images = image_count, project_path = final_dir)
 #> Start: Preparing the DF
 #> End: Preparing the DF
-#> Preparing the DF: 0.003 sec elapsed
+#> Preparing the DF: 0.002 sec elapsed
 #> Start: Plot bar chart
 ```
 
 <img src="man/figures/README-plots-1.png" alt="" width="100%" />
 
     #> End: Plot bar chart
-    #> Plot bar chart: 0.358 sec elapsed
+    #> Plot bar chart: 0.363 sec elapsed
     #> Start: Plot line chart
 
 <img src="man/figures/README-plots-2.png" alt="" width="100%" />
 
     #> End: Plot line chart
-    #> Plot line charts: 0.358 sec elapsed
+    #> Plot line charts: 0.372 sec elapsed
     #> Start: Save plots
     #> End: Save plots
-    #> Global runtime:: 0.655 sec elapsed
-    #> 1.375 sec elapsed
+    #> Global runtime:: 0.699 sec elapsed
+    #> 1.439 sec elapsed
 
 In that case, don’t forget to commit and push the resulting figure
 files, so they display on GitHub and CRAN.

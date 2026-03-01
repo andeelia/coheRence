@@ -85,7 +85,7 @@ coh_results <- coh_calc(rast_data = clipped_raster, buildings = clipped_building
 
 ```
 
-
+Finally, two plots will be created by calling classified plots:
 
 ```{r plots}
 library(coheRence)
