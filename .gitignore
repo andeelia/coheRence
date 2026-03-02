@@ -3,4 +3,4 @@
 /.quarto/
 **/*.quarto_ipynb
 
-.txt
+*.txt
