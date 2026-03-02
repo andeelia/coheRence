@@ -7,20 +7,35 @@
 
 <!-- badges: end -->
 
-The goal of coheRence is to calcuate average coherence values for single
-in a region of your choice. It takes pre-made coherence maps and
-building polygons, clips the images and calculates an avergae coherence
-value per building polygon in order to determine its status. During the
-workflow, a classification scheme can be implemented. Also, this package
-saves calculated results for the input buildings as .gpkg and plots
-colored graphs of the results, in order to get a better overview of the
-data provided. The idea behind this kind of analysis is to provide a
-fast way to combine coherence loss estimation with build-up areas. It is
-especially useful for areas of armed conflicts or after natural
-desasters. The saved files from this package can be used for further
-spatial analysis regarding damage patterns at one specific time or as a
-time series. This package is not capable of downloading data or
-processing SAR-scenes!
+The goal of **coheRence** is to calculate average coherence values for
+individual building polygons within a user-defined region. By utilizing
+pre-processed coherence maps (e.g., from Sentinel-1) and building
+geometries (e.g., from OpenStreetMap), the package clips spatial data
+and computes mean coherence values per building to assess its structural
+status.
+
+### Key Features
+
+- **Data Output**: Automatically saves results as GeoPackage (`.gpkg`)
+  and `.png` files for seamless integration into GIS environments and
+  easy reporting.
+- **Workflow Integration**: Implements customizable classification
+  schemes to categorize damage levels.
+- **Visualization**: Generates colored plots and time-series graphs to
+  provide a clear overview of analyzed data.
+
+### Use Cases
+
+This analysis provides a rapid method to combine coherence loss
+estimation with built-up areas. It is particularly valuable for
+monitoring areas affected by **armed conflicts** or **natural
+disasters**. The exported data can be used for further spatial analysis
+of damage patterns, either for a specific event or as a longitudinal
+time series.
+
+> \[!IMPORTANT\] This package is designed for post-processing and
+> analysis. It is **not** capable of downloading raw data or processing
+> initial SAR scenes (e.g., from SLC to Coherence).
 
 ## Installation
 
@@ -57,7 +72,7 @@ buildings <- '/home/andeelia/Documents/GitHub/package_test/raw_data/Gaza_Stripe_
 clips <- load_and_clip(data_path = path, target_crs = gaza_crs, buildings_path = buildings, save_clips = TRUE, project_path = final_dir)
 #> [1] "File loaded:/home/andeelia/Documents/GitHub/package_test/raw_data//20230930_20231105.tif"
 #> [2] "File loaded:/home/andeelia/Documents/GitHub/package_test/raw_data//20230930_20250522.tif"
-#> Data acquisition and Preparation: 0.248 sec elapsed
+#> Data acquisition and Preparation: 0.285 sec elapsed
 #> Reading layer `Gaza_Stripe_buildings' from data source 
 #>   `/home/andeelia/Documents/GitHub/package_test/raw_data/Gaza_Stripe_buildings.shp' 
 #>   using driver `ESRI Shapefile'
@@ -66,9 +81,9 @@ clips <- load_and_clip(data_path = path, target_crs = gaza_crs, buildings_path =
 #> Dimension:     XY
 #> Bounding box:  xmin: 34.22009 ymin: 31.22144 xmax: 34.56517 ymax: 31.58946
 #> Geodetic CRS:  WGS 84
-#> Prepare the building data: 18.92 sec elapsed
-#> Clipping raster with buildings: 0.415 sec elapsed
-#> Global runtime:: 19.583 sec elapsed
+#> Prepare the building data: 20.027 sec elapsed
+#> Clipping raster with buildings: 0.446 sec elapsed
+#> Global runtime:: 20.759 sec elapsed
 ```
 
 The result of this function is a list consisting of three things.
@@ -138,9 +153,9 @@ clipped_buildings <- clips[[2]]
 
 #call second function to analyse your dataset
 coh_results <- coh_calc(rast_data = clipped_raster, buildings = clipped_buildings, target_crs =  gaza_crs, project_path = final_dir)
-#> Prepare the building data: 0.781 sec elapsed
-#> Coherence analysis per building: 72.746 sec elapsed
-#> Global runtime:: 73.528 sec elapsed
+#> Prepare the building data: 0.742 sec elapsed
+#> Coherence analysis per building: 71.491 sec elapsed
+#> Global runtime:: 72.235 sec elapsed
 ```
 
 The result of this function looks like this:
@@ -190,10 +205,21 @@ image_count <- clips[[3]]
 #call function to plot graphs
 classified_plots(coh_df = coh_results, number_of_images = image_count, project_path = final_dir)
 #> Preparing the DF: 0.003 sec elapsed
-#> Plot bar chart: 0.376 sec elapsed
-#> Plot line charts: 0.388 sec elapsed
-#> Global runtime:: 0.699 sec elapsed
-#> 1.468 sec elapsed
+#> Plot bar chart: 0.429 sec elapsed
+#> Plot line charts: 0.352 sec elapsed
+#> Global runtime:: 0.709 sec elapsed
+#> 1.497 sec elapsed
 ```
 
 <img src="man/figures/README-plots-1.png" alt="" width="100%" /><img src="man/figures/README-plots-2.png" alt="" width="100%" />
+
+## Citation
+
+To cite **coheRence** in publications, please use:
+
+> Andersch, E. (2026). coheRence: Coherence loss analysis based on
+> building polygons and coherence maps. R package version 0.1.0. URL:
+> <https://github.com/andeelia/coheRence>
+
+Alternatively, you can run `citation("coheRence")` in R to get the
+BibTeX entry.

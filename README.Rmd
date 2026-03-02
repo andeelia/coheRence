@@ -20,15 +20,24 @@ knitr::opts_chunk$set(
 <!-- badges: start -->
 <!-- badges: end -->
 
-The goal of coheRence is to calcuate average coherence values for single in a region of your choice. It takes pre-made coherence maps and building polygons, clips the images and calculates an avergae coherence value per building polygon in order to determine its status. During the workflow, a classification scheme can be implemented. Also, this package saves calculated results for the input buildings as .gpkg and plots colored graphs of the results, in order to get a better overview of the data provided.
-The idea behind this kind of analysis is to provide a fast way to combine coherence loss estimation with build-up areas. It is especially useful for areas of armed conflicts or after natural desasters. The saved files from this package can be used for further spatial analysis regarding damage patterns at one specific time or as a time series.
-This package is not capable of downloading data or processing SAR-scenes!
+The goal of **coheRence** is to calculate average coherence values for individual building polygons within a user-defined region. By utilizing pre-processed coherence maps (e.g., from Sentinel-1) and building geometries (e.g., from OpenStreetMap), the package clips spatial data and computes mean coherence values per building to assess its structural status.
+
+### Key Features
+* **Data Output**: Automatically saves results as GeoPackage (`.gpkg`) and `.png` files for seamless integration into GIS environments and easy reporting.
+* **Workflow Integration**: Implements customizable classification schemes to categorize damage levels.
+* **Visualization**: Generates colored plots and time-series graphs to provide a clear overview of analyzed data.
+
+### Use Cases
+This analysis provides a rapid method to combine coherence loss estimation with built-up areas. It is particularly valuable for monitoring areas affected by **armed conflicts** or **natural disasters**. The exported data can be used for further spatial analysis of damage patterns, either for a specific event or as a longitudinal time series.
+
+> [!IMPORTANT]
+> This package is designed for post-processing and analysis. It is **not** capable of downloading raw data or processing initial SAR scenes (e.g., from SLC to Coherence).
 
 ## Installation
 
 You can install the development version of coheRence from [GitHub](https://github.com/) with:
 
-``` r
+``` {r installation}
 # install.packages("pak")
 pak::pak("andeelia/coheRence")
 ```
@@ -119,3 +128,9 @@ classified_plots(coh_df = coh_results, number_of_images = image_count, project_p
 
 ```
 
+## Citation
+To cite **coheRence** in publications, please use:
+
+> Andersch, E. (2026). coheRence: Coherence loss analysis based on building polygons and coherence maps. R package version 0.1.0. URL: https://github.com/andeelia/coheRence
+
+Alternatively, you can run `citation("coheRence")` in R to get the BibTeX entry.
