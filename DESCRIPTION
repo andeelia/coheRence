@@ -1,11 +1,13 @@
 Package: coheRence
-Title: Retrieve cohernce values based on OSM and Sentinel-1 data.
+Title: Coherence loss analysis based on OSM buildings and coherence maps
 Version: 0.0.0.9000
 Authors@R: 
     person("Elias", "Andersch", , "Elias.andersch@stud-mail.uni-wurzburg.de", role = c("aut", "cre"))
-Description: What the package does (one paragraph).
-License: `use_mit_license()`, `use_gpl3_license()` or friends to pick a
-    license
+Description: Provides tools to process Sentinel-1 coherence data in 
+    conjunction with OpenStreetMap (OSM) building geometries. It 
+    includes functions for automated clipping, data alignment, and 
+    visualizing damage classes based on coherence loss.
+License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.3
