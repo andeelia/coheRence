@@ -1,6 +1,6 @@
 Package: coheRence
-Title: Coherence loss analysis based on OSM buildings and coherence maps
-Version: 0.0.0.9000
+Title: Coherence loss analysis based on building polygons and coherence maps
+Version: 0.1.0
 Authors@R: 
     person("Elias", "Andersch", , "Elias.andersch@stud-mail.uni-wurzburg.de", role = c("aut", "cre"))
 Description: Provides tools to process Sentinel-1 coherence data in 
