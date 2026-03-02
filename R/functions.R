@@ -203,7 +203,7 @@ coh_calc <- function (rast_data, buildings, target_crs = 'EPSG:4326', project_pa
 
   #convert to single polygons for analysis
   single_buildings <- terra::disagg(terra_buildings)
-  print(paste("Number of single polygons:", nrow(single_buildings)))
+  message(paste('Number of single polygons:', nrow(single_buildings)))
 
   message('End: Prepare the building data')
   toc()
