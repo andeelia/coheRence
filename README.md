@@ -43,8 +43,16 @@ You can install the development version of coheRence from
 [GitHub](https://github.com/) with:
 
 ``` r
-# install.packages("pak")
-pak::pak("andeelia/coheRence")
+# install.packages("remotes")
+remotes::install_github("andeelia/coheRence")
+#> 
+#> ── R CMD build ─────────────────────────────────────────────────────────────────
+#> * checking for file ‘/tmp/Rtmp8oXDUj/remotescb054a207f47/andeelia-coheRence-f81046b/DESCRIPTION’ ... OK
+#> * preparing ‘coheRence’:
+#> * checking DESCRIPTION meta-information ... OK
+#> * checking for LF line-endings in source and make files and shell scripts
+#> * checking for empty or unneeded directories
+#> * building ‘coheRence_0.1.0.tar.gz’
 ```
 
 ## Workflow
@@ -72,7 +80,7 @@ buildings <- '/home/andeelia/Documents/GitHub/package_test/raw_data/Gaza_Stripe_
 clips <- load_and_clip(data_path = path, target_crs = gaza_crs, buildings_path = buildings, save_clips = TRUE, project_path = final_dir)
 #> [1] "File loaded:/home/andeelia/Documents/GitHub/package_test/raw_data//20230930_20231105.tif"
 #> [2] "File loaded:/home/andeelia/Documents/GitHub/package_test/raw_data//20230930_20250522.tif"
-#> Data acquisition and Preparation: 0.285 sec elapsed
+#> Data acquisition and Preparation: 0.303 sec elapsed
 #> Reading layer `Gaza_Stripe_buildings' from data source 
 #>   `/home/andeelia/Documents/GitHub/package_test/raw_data/Gaza_Stripe_buildings.shp' 
 #>   using driver `ESRI Shapefile'
@@ -81,9 +89,9 @@ clips <- load_and_clip(data_path = path, target_crs = gaza_crs, buildings_path =
 #> Dimension:     XY
 #> Bounding box:  xmin: 34.22009 ymin: 31.22144 xmax: 34.56517 ymax: 31.58946
 #> Geodetic CRS:  WGS 84
-#> Prepare the building data: 20.027 sec elapsed
-#> Clipping raster with buildings: 0.446 sec elapsed
-#> Global runtime:: 20.759 sec elapsed
+#> Prepare the building data: 20.294 sec elapsed
+#> Clipping raster with buildings: 0.426 sec elapsed
+#> Global runtime:: 21.025 sec elapsed
 ```
 
 The result of this function is a list consisting of three things.
@@ -153,9 +161,9 @@ clipped_buildings <- clips[[2]]
 
 #call second function to analyse your dataset
 coh_results <- coh_calc(rast_data = clipped_raster, buildings = clipped_buildings, target_crs =  gaza_crs, project_path = final_dir)
-#> Prepare the building data: 0.742 sec elapsed
-#> Coherence analysis per building: 71.491 sec elapsed
-#> Global runtime:: 72.235 sec elapsed
+#> Prepare the building data: 0.732 sec elapsed
+#> Coherence analysis per building: 71.76 sec elapsed
+#> Global runtime:: 72.493 sec elapsed
 ```
 
 The result of this function looks like this:
@@ -205,10 +213,10 @@ image_count <- clips[[3]]
 #call function to plot graphs
 classified_plots(coh_df = coh_results, number_of_images = image_count, project_path = final_dir)
 #> Preparing the DF: 0.003 sec elapsed
-#> Plot bar chart: 0.429 sec elapsed
-#> Plot line charts: 0.352 sec elapsed
-#> Global runtime:: 0.709 sec elapsed
-#> 1.497 sec elapsed
+#> Plot bar chart: 0.324 sec elapsed
+#> Plot line charts: 0.333 sec elapsed
+#> Global runtime:: 0.695 sec elapsed
+#> 1.357 sec elapsed
 ```
 
 <img src="man/figures/README-plots-1.png" alt="" width="100%" /><img src="man/figures/README-plots-2.png" alt="" width="100%" />

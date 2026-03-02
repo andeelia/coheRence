@@ -38,8 +38,8 @@ This analysis provides a rapid method to combine coherence loss estimation with 
 You can install the development version of coheRence from [GitHub](https://github.com/) with:
 
 ``` {r installation}
-# install.packages("pak")
-pak::pak("andeelia/coheRence")
+# install.packages("remotes")
+remotes::install_github("andeelia/coheRence")
 ```
 
 ## Workflow
