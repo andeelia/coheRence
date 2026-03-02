@@ -32,22 +32,20 @@ You can install the development version of coheRence from
 pak::pak("andeelia/coheRence")
 ```
 
-## Example
+## Workflow
 
 The complete workflow is shown here:
+
+### Load And Clip
+
+The first function takes .tif files from a set path, converts them to a
+pre-defined CRS and clips them with building polygons.
 
 ``` r
 library(coheRence)
 library(terra)
-#> terra 1.8.93
 library(sf)
-#> Linking to GEOS 3.14.1, GDAL 3.11.5, PROJ 9.6.2; sf_use_s2() is TRUE
 library(tictoc)
-#> 
-#> Attaching package: 'tictoc'
-#> The following objects are masked from 'package:terra':
-#> 
-#>     shift, size
 
 #define personal variables
 path <- '/home/andeelia/Documents/GitHub/package_test/raw_data/'
@@ -57,14 +55,9 @@ buildings <- '/home/andeelia/Documents/GitHub/package_test/raw_data/Gaza_Stripe_
 
 #call first function to prepare further processing steps
 clips <- load_and_clip(data_path = path, target_crs = gaza_crs, buildings_path = buildings, save_clips = TRUE, project_path = final_dir)
-#> Start: Data acquisition and Preparation
 #> [1] "File loaded:/home/andeelia/Documents/GitHub/package_test/raw_data//20230930_20231105.tif"
 #> [2] "File loaded:/home/andeelia/Documents/GitHub/package_test/raw_data//20230930_20250522.tif"
-#> 2 .tif files stored!
-#> Data successfully loaded and transformed
-#> End: Data acquisition and Preparation
-#> Data acquisition and Preparation: 0.245 sec elapsed
-#> Start: Prepare the building data
+#> Data acquisition and Preparation: 0.248 sec elapsed
 #> Reading layer `Gaza_Stripe_buildings' from data source 
 #>   `/home/andeelia/Documents/GitHub/package_test/raw_data/Gaza_Stripe_buildings.shp' 
 #>   using driver `ESRI Shapefile'
@@ -73,17 +66,9 @@ clips <- load_and_clip(data_path = path, target_crs = gaza_crs, buildings_path =
 #> Dimension:     XY
 #> Bounding box:  xmin: 34.22009 ymin: 31.22144 xmax: 34.56517 ymax: 31.58946
 #> Geodetic CRS:  WGS 84
-#> The CRS of all buildings was succesfully transformed to EPSG:32636 !
-#> End: Prepare the building data
-#> Prepare the building data: 19.006 sec elapsed
-#> Start: Clipping raster with buildings
-#> Saved at /home/andeelia/Documents/GitHub/package_test/clipped_data//20230930_20231105_clipped.tif
-#> Finished clipping index 20230930_20231105
-#> Saved at /home/andeelia/Documents/GitHub/package_test/clipped_data//20230930_20250522_clipped.tif
-#> Finished clipping index 20230930_20250522
-#> End: Clipping raster with buildings
-#> Clipping raster with buildings: 0.429 sec elapsed
-#> Global runtime:: 19.681 sec elapsed
+#> Prepare the building data: 18.92 sec elapsed
+#> Clipping raster with buildings: 0.415 sec elapsed
+#> Global runtime:: 19.583 sec elapsed
 ```
 
 The result of this function is a list consisting of three things.
@@ -136,8 +121,10 @@ print(clips[[3]])
 #> [1] 2
 ```
 
-By assigning the results to variables, they can be used in the following
-function:
+### Coherence Calculation
+
+By assigning the results from `load_and_clip()` to variables, they can
+be used in the following function:
 
 ``` r
 library(coheRence)
@@ -151,19 +138,41 @@ clipped_buildings <- clips[[2]]
 
 #call second function to analyse your dataset
 coh_results <- coh_calc(rast_data = clipped_raster, buildings = clipped_buildings, target_crs =  gaza_crs, project_path = final_dir)
-#> Start: Prepare the building data
-#> [1] "Number of single polygons: 27455"
-#> End: Prepare the building data
-#> Prepare the building data: 0.803 sec elapsed
-#> Start: Coherence analysis per building
-#> Start analysis for 20230930_20231105
-#> Start analysis for 20230930_20250522
-#> Number of buildings without any values: 0
-#> End: Coherence analysis per building
-#> Coherence analysis per building: 70.877 sec elapsed
-#> Global runtime:: 71.681 sec elapsed
+#> Prepare the building data: 0.781 sec elapsed
+#> Coherence analysis per building: 72.746 sec elapsed
+#> Global runtime:: 73.528 sec elapsed
 ```
 
+The result of this function looks like this:
+
+``` r
+head(coh_results)
+#>     osm_id code   fclass                            name   type
+#> 1 41243116 1500 building             Khaled Ben Alwaleed   <NA>
+#> 2 41243192 1500 building                    مسجد الزهراء   <NA>
+#> 3 41243835 1500 building                Nama Club Sports   <NA>
+#> 4 41244014 1500 building             Palestinian Telecom public
+#> 5 41244046 1500 building         Jabbalia Sewerage plant   <NA>
+#> 6 41244173 1500 building Youth House for Culture and Art public
+#>                    ADM0_EN ADM0_PCODE       date    validOn validTo Shape_Leng
+#> 1 State of Palestine (the)         PS 2021-03-18 2023-10-19    <NA>   6.006026
+#> 2 State of Palestine (the)         PS 2021-03-18 2023-10-19    <NA>   6.006026
+#> 3 State of Palestine (the)         PS 2021-03-18 2023-10-19    <NA>   6.006026
+#> 4 State of Palestine (the)         PS 2021-03-18 2023-10-19    <NA>   6.006026
+#> 5 State of Palestine (the)         PS 2021-03-18 2023-10-19    <NA>   6.006026
+#> 6 State of Palestine (the)         PS 2021-03-18 2023-10-19    <NA>   6.006026
+#>   Shape_Area AREA_SQKM 20230930_20231105_mean 20230930_20250522_mean
+#> 1   0.574021   6019.62              0.7367099              0.2239051
+#> 2   0.574021   6019.62              0.2626309              0.1523930
+#> 3   0.574021   6019.62              0.4664691              0.5022483
+#> 4   0.574021   6019.62              0.3970907              0.4064044
+#> 5   0.574021   6019.62              0.4689693              0.4139251
+#> 6   0.574021   6019.62              0.5520670              0.2226530
+```
+
+### Classified Plots
+
+As you can see, the calculated results are added to the end of the DF.
 Finally, two plots will be created by calling classified plots:
 
 ``` r
@@ -171,61 +180,20 @@ library(coheRence)
 library(tictoc)
 library(ggplot2)
 library(dplyr)
-#> 
-#> Attaching package: 'dplyr'
-#> The following objects are masked from 'package:terra':
-#> 
-#>     intersect, union
-#> The following objects are masked from 'package:stats':
-#> 
-#>     filter, lag
-#> The following objects are masked from 'package:base':
-#> 
-#>     intersect, setdiff, setequal, union
 library(tidyr)
-#> 
-#> Attaching package: 'tidyr'
-#> The following object is masked from 'package:terra':
-#> 
-#>     extract
 library(scales)
-#> 
-#> Attaching package: 'scales'
-#> The following object is masked from 'package:terra':
-#> 
-#>     rescale
 library(patchwork)
-#> 
-#> Attaching package: 'patchwork'
-#> The following object is masked from 'package:terra':
-#> 
-#>     area
 
 #assign result from load_and_clip
 image_count <- clips[[3]]
 
 #call function to plot graphs
 classified_plots(coh_df = coh_results, number_of_images = image_count, project_path = final_dir)
-#> Start: Preparing the DF
-#> End: Preparing the DF
-#> Preparing the DF: 0.002 sec elapsed
-#> Start: Plot bar chart
+#> Preparing the DF: 0.003 sec elapsed
+#> Plot bar chart: 0.376 sec elapsed
+#> Plot line charts: 0.388 sec elapsed
+#> Global runtime:: 0.699 sec elapsed
+#> 1.468 sec elapsed
 ```
 
-<img src="man/figures/README-plots-1.png" alt="" width="100%" />
-
-    #> End: Plot bar chart
-    #> Plot bar chart: 0.363 sec elapsed
-    #> Start: Plot line chart
-
-<img src="man/figures/README-plots-2.png" alt="" width="100%" />
-
-    #> End: Plot line chart
-    #> Plot line charts: 0.372 sec elapsed
-    #> Start: Save plots
-    #> End: Save plots
-    #> Global runtime:: 0.699 sec elapsed
-    #> 1.439 sec elapsed
-
-In that case, don’t forget to commit and push the resulting figure
-files, so they display on GitHub and CRAN.
+<img src="man/figures/README-plots-1.png" alt="" width="100%" /><img src="man/figures/README-plots-2.png" alt="" width="100%" />

@@ -9,7 +9,9 @@ knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>",
   fig.path = "man/figures/README-",
-  out.width = "100%"
+  out.width = "100%",
+  message = FALSE,
+  warning = FALSE
 )
 ```
 
@@ -31,9 +33,13 @@ You can install the development version of coheRence from [GitHub](https://githu
 pak::pak("andeelia/coheRence")
 ```
 
-## Example
+## Workflow
 
 The complete workflow is shown here:
+
+### Load And Clip
+
+The first function takes .tif files from a set path, converts them to a pre-defined CRS and clips them with building polygons.
 
 ```{r load_and_clip}
 library(coheRence)
@@ -68,7 +74,8 @@ head(clips[[2]])
 print(clips[[3]])
 ```
 
-By assigning the results to variables, they can be used in the following function:
+### Coherence Calculation
+By assigning the results from `load_and_clip()` to variables, they can be used in the following function:
 
 ```{r coh_calc}
 library(coheRence)
@@ -85,9 +92,17 @@ coh_results <- coh_calc(rast_data = clipped_raster, buildings = clipped_building
 
 ```
 
+The result of this function looks like this:
+
+```{r coh_results}
+head(coh_results)
+```
+
+### Classified Plots
+As you can see, the calculated results are added to the end of the DF.
 Finally, two plots will be created by calling classified plots:
 
-```{r plots}
+```{r plots, fig.show = 'hold'}
 library(coheRence)
 library(tictoc)
 library(ggplot2)
@@ -104,5 +119,3 @@ classified_plots(coh_df = coh_results, number_of_images = image_count, project_p
 
 ```
 
-
-In that case, don't forget to commit and push the resulting figure files, so they display on GitHub and CRAN.
